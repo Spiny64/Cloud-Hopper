@@ -1,10 +1,10 @@
-HI
 import pgzrun
 import pygame
 import random
 import time
 
 # Constants
+NAME="NOAH"
 WIDTH = 800
 HEIGHT = 600
 PLAYER_GRAVITY = 1
@@ -19,7 +19,7 @@ keycount = 0
 ldisplay = Actor('1')
 ldisplay.x = 50
 ldisplay.y = 50
-ldisplay._surf = pygame.transform.scale(ldisplay._surf, (150, 80))
+ldisplay._surf = pygame.transform.scale(ldisplay._surf, (200, 80))
 
 bgcloud = Actor('bgcloud')
 bgcloud.x = -300
@@ -81,7 +81,7 @@ spikes = {
     4: [],
 }
 pads = {
-    1: [(500, 500)],
+    1: [(500, 400)],
     2: [],
     3: [],
     4: [],
