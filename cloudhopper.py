@@ -3,8 +3,6 @@ import pygame
 import random
 import time
 
-# Constants
-NAME="NOAH"
 WIDTH = 800
 HEIGHT = 600
 PLAYER_GRAVITY = 1
@@ -15,11 +13,12 @@ transition_step = 0
 loaded = False
 anups = 0
 keycount = 0
+titling = True
 
 ldisplay = Actor('1')
-ldisplay.x = 50
-ldisplay.y = 50
-ldisplay._surf = pygame.transform.scale(ldisplay._surf, (200, 80))
+ldisplay.x = 40
+ldisplay.y = 20
+ldisplay._surf = pygame.transform.scale(ldisplay._surf, (250, 80))
 
 bgcloud = Actor('bgcloud')
 bgcloud.x = -300
@@ -30,8 +29,7 @@ bgcloud2.x = -200
 bgcloud2.y = 400
 bgcloud2._surf = pygame.transform.scale(bgcloud2._surf, (96, 48))
 
-# Game Objects
-player = Actor('guy')  # Replace with (image: player)
+player = Actor('guy')
 player.x = 50
 player.y = HEIGHT - 100
 player.vel_y = 0
@@ -63,16 +61,16 @@ platforms = {
     2: [(50, 550), (120, 470), (190, 390), (120, 310), (190, 230), (260, 230), \
         (470, 550), (540, 550), (610, 510), (680, 470), (750, 430)],  # Future levels can be added here
     3: [(750, 100), (540, 140), (470, 380), (330, 140), (120, 140), (680, 380)],
-    4: [(50, 550)],
+    4: [(50, 550), (230, 300), (400, 400)],
 }
 
-portals = [(0, 0), (0, 0), (750, 380), (400, 400), (400, 300)]
+portals = [(0, 0), (0, 0), (750, 380), (680, 340), (680, 340)]
 guys = [(0, 0), (50, 500), (50, 500), (750, 50), (50, 500)]
 keys = {
     1: [(120, 520), (350, 430), (600, 260)],
     2: [(120, 440), (260, 200), (460, 380)],
-    3: [(120, 110), (150, 110), (470, 340)],
-    4: [(50, 550)],
+    3: [(120, 110), (540, 110), (470, 340)],
+    4: [(50, 550), (230, 270)],
 }
 spikes = {
     1: [(600, 550)],
@@ -81,10 +79,10 @@ spikes = {
     4: [],
 }
 pads = {
-    1: [(500, 400)],
+    1: [],
     2: [],
     3: [],
-    4: [],
+    4: [(140, 550)],
 }
 
 # Create platform actors for a given level
@@ -170,139 +168,145 @@ def update():
     global loaded
     global anups
     global keycount
+    global titling
 
-    # Do transition effect
-    if transitioning:
-        if transition_step == 0:
+    if not titling:
+        # Do transition effect
+        if transitioning:
+            if transition_step == 0:
+                pygame.mixer.init()
+                pygame.mixer.music.load('Music/transition.wav')
+                pygame.mixer.music.play()
+                transition_step += 1
+            elif 1 <= transition_step <= 60:
+                b1.x += 30
+                b2.x += 25
+                b3.x += 20
+                transition_step += 1
+                if transition_step == 60:
+                    if not loaded:
+                        pygame.mixer.music.load('Music/transitionback.wav')
+                        pygame.mixer.music.play()
+                        level += 1
+                        loaded = True
+                        portal.pos = portals[level]
+                        portal.angle = 0
+                        portal.image = 'portaldark'
+                        player.pos = guys[level]
+                        current_platforms = create_platforms(level)
+                        current_keys = create_keys(level)
+                        current_spikes = create_spikes(level)
+                        current_pads = create_pads(level)
+                        ldisplay.image = '%s' % (level)
+                        ldisplay._surf = pygame.transform.scale(ldisplay._surf, (250, 80))
+                        keycount = 0
+                        keydisplay.image = 'nokeys'
+            elif 61 <= transition_step <= 122:
+                b1.x -= 30
+                b2.x -= 25
+                b3.x -= 20
+                transition_step += 1
+            elif transition_step > 122:
+                # Reset transition for the next use
+                transition_step = 0
+                transitioning = False
+                loaded = False  # Reset loaded state for next transition
+        
+        # Player gravity       
+        if not transitioning:
+            player.vel_y += PLAYER_GRAVITY
+            player.y += player.vel_y
+        
+        # Collision with platforms
+        player.on_ground = False
+        for platform in current_platforms:
+            if player.colliderect(platform) and player.y < platform.y:
+                player.y = platform.y - player.height
+                player.vel_y = 0
+                player.on_ground = True
+                break
+            if player.colliderect(platform) and player.y >= platform.y:
+                player.vel_y = 3
+                break
+
+        # Keep the player in bounds
+        if player.y > HEIGHT:
             pygame.mixer.init()
-            pygame.mixer.music.load('Music/transition.wav')
+            pygame.mixer.music.load('Music/die.wav')
             pygame.mixer.music.play()
-            transition_step += 1
-        elif 1 <= transition_step <= 60:
-            b1.x += 30
-            b2.x += 25
-            b3.x += 20
-            transition_step += 1
-            if transition_step == 60:
-                if not loaded:
-                    pygame.mixer.music.load('Music/transitionback.wav')
-                    pygame.mixer.music.play()
-                    level += 1
-                    loaded = True
-                    portal.pos = portals[level]
-                    portal.angle = 0
-                    portal.image = 'portaldark'
-                    player.pos = guys[level]
-                    current_platforms = create_platforms(level)
-                    current_keys = create_keys(level)
-                    current_spikes = create_spikes(level)
-                    current_pads = create_pads(level)
-                    ldisplay.image = '%s' % (level)
-                    ldisplay._surf = pygame.transform.scale(ldisplay._surf, (150, 80))
-                    keycount = 0
-                    keydisplay.image = 'nokeys'
-        elif 61 <= transition_step <= 122:
-            b1.x -= 30
-            b2.x -= 25
-            b3.x -= 20
-            transition_step += 1
-        elif transition_step > 122:
-            # Reset transition for the next use
-            transition_step = 0
-            transitioning = False
-            loaded = False  # Reset loaded state for next transition
-    
-    # Player gravity       
-    if not transitioning:
-        player.vel_y += PLAYER_GRAVITY
-        player.y += player.vel_y
-    
-    # Collision with platforms
-    player.on_ground = False
-    for platform in current_platforms:
-        if player.colliderect(platform) and player.y < platform.y:
-            player.y = platform.y - player.height
-            player.vel_y = 0
-            player.on_ground = True
-            break
-        if player.colliderect(platform) and player.y >= platform.y:
-            player.vel_y = 3
-            break
-
-    # Keep the player in bounds
-    if player.y > HEIGHT:
-        pygame.mixer.init()
-        pygame.mixer.music.load('Music/die.wav')
-        pygame.mixer.music.play()
-        reset_player()
-
-    # Check for inputs
-    if not transitioning:
-        if keyboard.right:
-            player.x += 5
-        if keyboard.left:
-            player.x -= 5
-        if keyboard.up and player.on_ground:
-            player.vel_y -= PLAYER_JUMP_STRENGTH
-        if keyboard.r:
             reset_player()
 
-    # Animate portal and keys
-        if anups == 30:
-            for key in current_keys:
-                key.y -= 4
-            for spike in current_spikes:
-                spike.image = 'spikedark'
-        if anups == 60:
-            for key in current_keys:
-                key.y += 4
-            for spike in current_spikes:
-                spike.image = 'spike'
-            anups = 0
-        if keycount == 3:
-            portal.image = 'portal'
-            portal.angle += 2.5
-
-    # Check collision with keys, portal and spikes
-        if player.colliderect(portal) and not transitioning and keycount > 2:
-            next_level()
-        for key in current_keys:
-            if player.colliderect(key):
-                pygame.mixer.music.load('Music/keycollect.wav')
-                pygame.mixer.music.play()
-                key.x = -600
-                key.y = -600
-                keycount += 1
-        for spike in current_spikes:
-            if player.colliderect(spike):
-                pygame.mixer.music.load('Music/die.wav')
-                pygame.mixer.music.play()
+        # Check for inputs
+        if not transitioning:
+            if keyboard.right:
+                player.x += 5
+            if keyboard.left:
+                player.x -= 5
+            if keyboard.up and player.on_ground:
+                player.vel_y -= PLAYER_JUMP_STRENGTH
+            if keyboard.r:
                 reset_player()
 
-        for pad in current_pads:
-            if player.colliderect(pad):
-                pygame.mixer.music.load('Music/bounce.wav')
-                pygame.mixer.music.play()
-                player.vel_y = -25
+        # Animate portal and keys
+            if anups == 30:
+                for key in current_keys:
+                    key.y -= 4
+                for spike in current_spikes:
+                    spike.image = 'spikedark'
+            if anups == 60:
+                for key in current_keys:
+                    key.y += 4
+                for spike in current_spikes:
+                    spike.image = 'spike'
+                anups = 0
+            if keycount == 3:
+                portal.image = 'portal'
+                portal.angle += 2.5
 
-        if keycount == 0:
-            keydisplay.image = 'nokeys'
-        elif keycount == 1:
-            keydisplay.image = 'onekey'
-        elif keycount == 2:
-            keydisplay.image = 'twokeys'
-        else:
-            keydisplay.image = 'threekeys'
+        # Check collision with keys, portal and spikes
+            if player.colliderect(portal) and not transitioning and keycount > 2:
+                next_level()
+            for key in current_keys:
+                if player.colliderect(key):
+                    pygame.mixer.music.load('Music/keycollect.wav')
+                    pygame.mixer.music.play()
+                    key.x = -600
+                    key.y = -600
+                    keycount += 1
+            for spike in current_spikes:
+                if player.colliderect(spike):
+                    pygame.mixer.music.load('Music/die.wav')
+                    pygame.mixer.music.play()
+                    reset_player()
 
-    anups += 1
-    bgcloud.x += 1
-    bgcloud2.x += 1
-    if bgcloud.x > 900:
-        bgcloud.x = random.randint(-200, -100)
-        bgcloud.y = random.randint(50, 250)
-    if bgcloud2.x > 900:
-        bgcloud2.x = random.randint(-400, -300)
-        bgcloud2.y = random.randint(350, 550)
+            for pad in current_pads:
+                if player.colliderect(pad):
+                    pygame.mixer.music.load('Music/bounce.wav')
+                    pygame.mixer.music.play()
+                    player.vel_y = -25
+
+            if keycount == 0:
+                keydisplay.image = 'nokeys'
+            elif keycount == 1:
+                keydisplay.image = 'onekey'
+            elif keycount == 2:
+                keydisplay.image = 'twokeys'
+            else:
+                keydisplay.image = 'threekeys'
+
+        anups += 1
+        bgcloud.x += 1
+        bgcloud2.x += 1
+        if bgcloud.x > 900:
+            bgcloud.x = random.randint(-200, -100)
+            bgcloud.y = random.randint(50, 250)
+        if bgcloud2.x > 900:
+            bgcloud2.x = random.randint(-400, -300)
+            bgcloud2.y = random.randint(350, 550)
+    else:
+        if keyboard.space:
+            titling = False
+        
 
 def reset_player():
     """Reset player to starting position."""
@@ -319,23 +323,26 @@ def reset_player():
 def draw():
     """Draw all game objects."""
     screen.clear()
-    screen.blit('sky', (0, 0))
-    bgcloud.draw()
-    ldisplay.draw()
-    keydisplay.draw()
-    for spike in current_spikes:
-        spike.draw()
-    for platform in current_platforms:
-        platform.draw()
-    for key in current_keys:
-        key.draw()
-    for pad in current_pads:
-        pad.draw()
-    portal.draw()
-    player.draw()
-    b1.draw()
-    b2.draw()
-    b3.draw()
+    if not titling:
+        screen.blit('sky', (0, 0))
+        bgcloud.draw()
+        ldisplay.draw()
+        keydisplay.draw()
+        for spike in current_spikes:
+            spike.draw()
+        for platform in current_platforms:
+            platform.draw()
+        for key in current_keys:
+            key.draw()
+        for pad in current_pads:
+            pad.draw()
+        portal.draw()
+        player.draw()
+        b1.draw()
+        b2.draw()
+        b3.draw()
+    else:
+        screen.blit('fileselect', (0, 0))
 
 # Run the game
 pgzrun.go()
